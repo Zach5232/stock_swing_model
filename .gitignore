@@ -1,0 +1,14 @@
+# Data and output directories
+Data/
+Results/
+Logs/
+
+# macOS
+.DS_Store
+
+# Temp Office files
+~$*
+
+# Python
+.venv/
+__pycache__/
