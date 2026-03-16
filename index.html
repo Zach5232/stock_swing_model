@@ -2127,55 +2127,71 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>{
   console.error('[AUTH] setPersistence failed:',e);
 });
 
-// Handle redirect result after Google sign-in redirect
+async function bootUser(user){
+  if(_booted){console.log('[AUTH] already booted, skipping');return;}
+  _booted=true;
+  userRef=db.collection('users').doc(user.uid);
+  const ls=document.getElementById('login-screen');
+  const ld=document.getElementById('loading-screen');
+  if(ls)ls.style.display='none';
+  if(ld)ld.style.display='flex';
+  try{
+    console.log('[AUTH] loading Firestore data...');
+    await loadAllData();
+    console.log('[AUTH] loadAllData complete');
+  }catch(e){console.error('[AUTH] loadAllData failed:',e);}
+  if(ld)ld.style.display='none';
+  applyTheme();
+  initIntel();
+  renderSlate();
+  renderSlateHistoryDropdown();
+  render();
+  refreshPrices();
+  fetchSpyHistory();
+  setInterval(()=>refreshPrices(false),60000);
+  setInterval(fetchSpyHistory,3600000);
+  console.log('[AUTH] boot complete');
+}
+
+function showLogin(){
+  _booted=false;
+  userRef=null;
+  const ls=document.getElementById('login-screen');
+  const ld=document.getElementById('loading-screen');
+  if(ls)ls.style.display='flex';
+  if(ld)ld.style.display='none';
+}
+
+// Step 1: check if we're returning from a Google redirect.
+// Only register onAuthStateChanged after this resolves to avoid the race
+// where onAuthStateChanged fires null before the redirect user is available.
 console.log('[AUTH] calling getRedirectResult...');
-auth.getRedirectResult().then(result=>{
+auth.getRedirectResult().then(async result=>{
   if(result && result.user){
     console.log('[AUTH] getRedirectResult: signed in as',result.user.email,'uid=',result.user.uid);
+    await bootUser(result.user);
   } else {
-    console.log('[AUTH] getRedirectResult: no redirect user (normal on first load)');
+    console.log('[AUTH] getRedirectResult: no redirect user — registering onAuthStateChanged');
+    // Step 2: no redirect in progress — fall back to persistent session check
+    auth.onAuthStateChanged(async user=>{
+      console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null');
+      if(user){
+        await bootUser(user);
+      } else {
+        console.log('[AUTH] no user — showing login screen');
+        showLogin();
+      }
+    });
   }
 }).catch(e=>{
   console.error('[AUTH] getRedirectResult error:',e.code, e.message);
   const err=document.getElementById('login-err');
   if(err)err.textContent=e.message||'Sign-in failed.';
-});
-
-auth.onAuthStateChanged(async user=>{
-  console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null','_booted:',_booted);
-  if(user){
-    if(_booted){console.log('[AUTH] already booted, skipping');return;}
-    _booted=true;
-    userRef=db.collection('users').doc(user.uid);
-    const ls=document.getElementById('login-screen');
-    const ld=document.getElementById('loading-screen');
-    if(ls)ls.style.display='none';
-    if(ld){ld.style.display='flex';}
-    try{
-      console.log('[AUTH] loading Firestore data...');
-      await loadAllData();
-      console.log('[AUTH] loadAllData complete');
-    }catch(e){console.error('[AUTH] loadAllData failed:',e);}
-    if(ld)ld.style.display='none';
-    applyTheme();
-    initIntel();
-    renderSlate();
-    renderSlateHistoryDropdown();
-    render();
-    refreshPrices();
-    fetchSpyHistory();
-    setInterval(()=>refreshPrices(false),60000);
-    setInterval(fetchSpyHistory,3600000);
-    console.log('[AUTH] boot complete');
-  } else {
-    console.log('[AUTH] no user — showing login screen');
-    _booted=false;
-    userRef=null;
-    const ls=document.getElementById('login-screen');
-    const ld=document.getElementById('loading-screen');
-    if(ls)ls.style.display='flex';
-    if(ld)ld.style.display='none';
-  }
+  // Still register onAuthStateChanged so existing sessions can recover
+  auth.onAuthStateChanged(async user=>{
+    if(user) await bootUser(user);
+    else showLogin();
+  });
 });
 </script>
 </body>
