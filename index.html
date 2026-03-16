@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swing Model Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <script>
 /* ============================================================
@@ -557,6 +554,10 @@ canvas{width:100%!important}
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
 <script>
 /* ── apply theme ── */
 function applyTheme(){
@@ -703,12 +704,12 @@ async function migrateFromLocalStorage(){
   console.log('Migration done — trades:'+trades.length+' closed:'+closed.length+' weeks:'+weeks.length);
 }
 
-async function loginUser(){
+function loginUser(){
   const err=document.getElementById('login-err');
   err.textContent='';
   try{
     const provider=new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithRedirect(provider);
+    auth.signInWithRedirect(provider);
   }catch(e){err.textContent=e.message||'Sign-in failed.';}
 }
 function logoutUser(){auth.signOut();}
@@ -2122,24 +2123,39 @@ function prefillTrade(ticker, entry, stop, target, shares, sector, company){
 window.addEventListener('online',()=>{const b=document.getElementById('offline-banner');if(b)b.style.display='none';});
 window.addEventListener('offline',()=>{const b=document.getElementById('offline-banner');if(b)b.style.display='flex';});
 
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>{
+  console.error('[AUTH] setPersistence failed:',e);
+});
 
 // Handle redirect result after Google sign-in redirect
-auth.getRedirectResult().catch(e=>{
+console.log('[AUTH] calling getRedirectResult...');
+auth.getRedirectResult().then(result=>{
+  if(result && result.user){
+    console.log('[AUTH] getRedirectResult: signed in as',result.user.email,'uid=',result.user.uid);
+  } else {
+    console.log('[AUTH] getRedirectResult: no redirect user (normal on first load)');
+  }
+}).catch(e=>{
+  console.error('[AUTH] getRedirectResult error:',e.code, e.message);
   const err=document.getElementById('login-err');
   if(err)err.textContent=e.message||'Sign-in failed.';
 });
 
 auth.onAuthStateChanged(async user=>{
+  console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null','_booted:',_booted);
   if(user){
-    if(_booted)return;
+    if(_booted){console.log('[AUTH] already booted, skipping');return;}
     _booted=true;
     userRef=db.collection('users').doc(user.uid);
     const ls=document.getElementById('login-screen');
     const ld=document.getElementById('loading-screen');
     if(ls)ls.style.display='none';
     if(ld){ld.style.display='flex';}
-    try{await loadAllData();}catch(e){console.error('loadAllData failed:',e);}
+    try{
+      console.log('[AUTH] loading Firestore data...');
+      await loadAllData();
+      console.log('[AUTH] loadAllData complete');
+    }catch(e){console.error('[AUTH] loadAllData failed:',e);}
     if(ld)ld.style.display='none';
     applyTheme();
     initIntel();
@@ -2150,7 +2166,9 @@ auth.onAuthStateChanged(async user=>{
     fetchSpyHistory();
     setInterval(()=>refreshPrices(false),60000);
     setInterval(fetchSpyHistory,3600000);
+    console.log('[AUTH] boot complete');
   } else {
+    console.log('[AUTH] no user — showing login screen');
     _booted=false;
     userRef=null;
     const ls=document.getElementById('login-screen');
