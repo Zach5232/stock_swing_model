@@ -702,22 +702,26 @@ async function migrateFromLocalStorage(){
   console.log('Migration done — trades:'+trades.length+' closed:'+closed.length+' weeks:'+weeks.length);
 }
 
-async function loginUser(){
+function loginUser(){
   const err=document.getElementById('login-err');
   err.textContent='';
-  try{
-    const provider=new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({
-      client_id:'127579918853-qnr6trrontukbim1gtinah9q5bf8n254.apps.googleusercontent.com'
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({
+    client_id:'127579918853-qnr6trrontukbim1gtinah9q5bf8n254.apps.googleusercontent.com'
+  });
+  provider.addScope('email');
+  provider.addScope('profile');
+  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+    console.log('[AUTH] mobile detected — calling signInWithRedirect...');
+    auth.signInWithRedirect(provider);
+  } else {
+    console.log('[AUTH] desktop — calling signInWithPopup...');
+    auth.signInWithPopup(provider).then(r=>{
+      console.log('[AUTH] signInWithPopup success:',r.user.email);
+    }).catch(e=>{
+      console.error('[AUTH] signInWithPopup error:',e);
+      err.textContent=e.message||'Sign-in failed.';
     });
-    provider.addScope('email');
-    provider.addScope('profile');
-    console.log('[AUTH] calling signInWithPopup...');
-    const result=await auth.signInWithPopup(provider);
-    console.log('[AUTH] signInWithPopup success:',result.user.email);
-  }catch(e){
-    console.error('[AUTH] signInWithPopup error:',e);
-    err.textContent=e.message||'Sign-in failed.';
   }
 }
 function logoutUser(){auth.signOut();}
@@ -2169,6 +2173,13 @@ function showLogin(){
   if(ls)ls.style.display='flex';
   if(ld)ld.style.display='none';
 }
+
+// Complete any pending redirect (mobile); onAuthStateChanged handles the result
+auth.getRedirectResult().catch(e=>{
+  console.error('[AUTH] getRedirectResult error:',e);
+  const err=document.getElementById('login-err');
+  if(err)err.textContent=e.message||'Sign-in failed.';
+});
 
 auth.onAuthStateChanged(async user=>{
   console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null');
