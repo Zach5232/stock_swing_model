@@ -709,8 +709,17 @@ function loginUser(){
   err.textContent='';
   try{
     const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({
+      client_id:'127579918853-qnr6trrontukbim1gtinah9q5bf8n254.apps.googleusercontent.com'
+    });
+    provider.addScope('email');
+    provider.addScope('profile');
+    console.log('[AUTH] calling signInWithRedirect...');
     auth.signInWithRedirect(provider);
-  }catch(e){err.textContent=e.message||'Sign-in failed.';}
+  }catch(e){
+    console.error('[AUTH] signInWithRedirect error:',e);
+    err.textContent=e.message||'Sign-in failed.';
+  }
 }
 function logoutUser(){auth.signOut();}
 
@@ -2184,7 +2193,8 @@ auth.getRedirectResult().then(async result=>{
     });
   }
 }).catch(e=>{
-  console.error('[AUTH] getRedirectResult error:',e.code, e.message);
+  console.error('[AUTH] getRedirectResult error — full object:',e);
+  console.error('[AUTH] code:',e.code,'message:',e.message,'email:',e.email,'credential:',e.credential);
   const err=document.getElementById('login-err');
   if(err)err.textContent=e.message||'Sign-in failed.';
   // Still register onAuthStateChanged so existing sessions can recover
