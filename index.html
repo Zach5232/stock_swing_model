@@ -465,9 +465,9 @@ canvas{width:100%!important}
     <div class="ctitle">Season record</div>
     <div style="margin-bottom:.6rem;position:relative;z-index:1">
       <label id="week-note-label" style="font-size:11px;display:block;margin-bottom:4px">Week — note</label>
-      <input id="week-note-input" maxlength="80" placeholder="Any notes for this week…"
-        style="width:100%;font-size:12px;padding:5px 8px;border-radius:7px;border:.5px solid;font-style:italic;box-sizing:border-box;pointer-events:auto;position:relative;z-index:1"
-        oninput="saveCurrentNote(this.value)">
+      <textarea id="week-note-input" rows="3" maxlength="500" placeholder="Any notes for this week…"
+        style="width:100%;font-size:12px;padding:5px 8px;border-radius:7px;border:.5px solid;font-style:italic;box-sizing:border-box;pointer-events:auto;position:relative;z-index:1;resize:vertical;font-family:inherit"
+        oninput="saveCurrentNote(this.value)"></textarea>
     </div>
     <div id="season-list"><div style="font-size:13px">No weeks completed yet.</div></div>
   </div>
@@ -763,7 +763,7 @@ function initIntel(){
 
 /* ── week notes ── */
 function saveCurrentNote(text){
-  const t=text.slice(0,80);
+  const t=text.slice(0,500);
   notesCache[String(weekNum)]=t;
   clearTimeout(noteSaveTimer);
   noteSaveTimer=setTimeout(()=>{
