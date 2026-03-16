@@ -2170,37 +2170,14 @@ function showLogin(){
   if(ld)ld.style.display='none';
 }
 
-// Step 1: check if we're returning from a Google redirect.
-// Only register onAuthStateChanged after this resolves to avoid the race
-// where onAuthStateChanged fires null before the redirect user is available.
-console.log('[AUTH] calling getRedirectResult...');
-auth.getRedirectResult().then(async result=>{
-  if(result && result.user){
-    console.log('[AUTH] getRedirectResult: signed in as',result.user.email,'uid=',result.user.uid);
-    await bootUser(result.user);
+auth.onAuthStateChanged(async user=>{
+  console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null');
+  if(user){
+    await bootUser(user);
   } else {
-    console.log('[AUTH] getRedirectResult: no redirect user — registering onAuthStateChanged');
-    // Step 2: no redirect in progress — fall back to persistent session check
-    auth.onAuthStateChanged(async user=>{
-      console.log('[AUTH] onAuthStateChanged fired — user:',user?user.email+' uid='+user.uid:'null');
-      if(user){
-        await bootUser(user);
-      } else {
-        console.log('[AUTH] no user — showing login screen');
-        showLogin();
-      }
-    });
+    console.log('[AUTH] no user — showing login screen');
+    showLogin();
   }
-}).catch(e=>{
-  console.error('[AUTH] getRedirectResult error — full object:',e);
-  console.error('[AUTH] code:',e.code,'message:',e.message,'email:',e.email,'credential:',e.credential);
-  const err=document.getElementById('login-err');
-  if(err)err.textContent=e.message||'Sign-in failed.';
-  // Still register onAuthStateChanged so existing sessions can recover
-  auth.onAuthStateChanged(async user=>{
-    if(user) await bootUser(user);
-    else showLogin();
-  });
 });
 </script>
 </body>
