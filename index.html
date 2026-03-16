@@ -702,7 +702,7 @@ async function migrateFromLocalStorage(){
   console.log('Migration done — trades:'+trades.length+' closed:'+closed.length+' weeks:'+weeks.length);
 }
 
-function loginUser(){
+async function loginUser(){
   const err=document.getElementById('login-err');
   err.textContent='';
   const provider=new firebase.auth.GoogleAuthProvider();
@@ -711,17 +711,17 @@ function loginUser(){
   });
   provider.addScope('email');
   provider.addScope('profile');
-  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
-    console.log('[AUTH] mobile detected — calling signInWithRedirect...');
-    auth.signInWithRedirect(provider);
-  } else {
-    console.log('[AUTH] desktop — calling signInWithPopup...');
-    auth.signInWithPopup(provider).then(r=>{
-      console.log('[AUTH] signInWithPopup success:',r.user.email);
-    }).catch(e=>{
+  try{
+    console.log('[AUTH] calling signInWithPopup...');
+    await auth.signInWithPopup(provider);
+  }catch(e){
+    if(e.code==='auth/popup-blocked'||e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request'){
+      console.log('[AUTH] popup blocked/closed — falling back to redirect. code:',e.code);
+      auth.signInWithRedirect(provider);
+    } else {
       console.error('[AUTH] signInWithPopup error:',e);
       err.textContent=e.message||'Sign-in failed.';
-    });
+    }
   }
 }
 function logoutUser(){auth.signOut();}
