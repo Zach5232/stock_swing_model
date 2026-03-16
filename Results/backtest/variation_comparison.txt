@@ -1,0 +1,58 @@
+=== BACKTEST VARIATION COMPARISON ===
+
+=== VERSION 1 BASELINE ===
+Total trades:       1185
+Win rate:           48.3%
+Avg R per trade:    0.01
+Profit factor:      1.04
+Max drawdown:       -9.9%
+Total return:       5.4%
+Final equity:       $10,535.38
+
+=== VARIATION A SUMMARY (Regime Filter — skip BULL weeks) ===
+Date range:         2021-02-08 to 2026-03-11
+Total weeks:        271
+Weeks with trades:  92  (vs V1: 237)
+Total trades:       460  (vs V1: 1185)
+Win rate:           50.9%  (vs V1: 48.3%)
+Avg R per trade:    0.04  (vs V1: 0.01)
+Profit factor:      1.10  (vs V1: 1.04)
+Max drawdown:       -6.1%  (vs V1: -9.9%)
+Final equity:       $10,495.73  (vs V1: $10,535)
+Total return:       5.0%  (vs V1: 5.4%)
+
+Exit breakdown:
+  Target hit:       26  (5.7%)
+  Stop hit:         118  (25.7%)
+  Time exit:        316  (68.7%)
+
+=== VARIATION B SUMMARY (2-Week Hold For Winners) ===
+Date range:         2021-02-08 to 2026-03-11
+Total weeks:        271
+Weeks with trades:  253  (vs V1: 237)
+Total trades:       1185  (vs V1: 1185)
+Win rate:           42.9%  (vs V1: 48.3%)
+Avg R per trade:    -0.00  (vs V1: 0.01)
+Profit factor:      1.00  (vs V1: 1.04)
+Max drawdown:       -13.6%  (vs V1: -9.9%)
+Final equity:       $10,061.79  (vs V1: $10,535)
+Total return:       0.6%  (vs V1: 5.4%)
+
+Exit breakdown:
+  Target hit:       135  (11.4%)
+  Stop hit:         407  (34.3%)
+  Time exit:        643  (54.3%)
+
+--- HEAD TO HEAD ---
+Metric                  V1 Baseline    Var A (Regime)  Var B (2Wk Hold)
+------------------------------------------------------------------------
+Win Rate                      48.3%             50.9%             42.9%
+Profit Factor                  1.04              1.10              1.00
+Avg R                          0.01              0.04             -0.00
+Max Drawdown                  -9.9%             -6.1%            -13.6%
+Total Return                   5.4%              5.0%              0.6%
+Total Trades                   1185               460              1185
+Weeks Traded                    237                92               253
+
+--- RECOMMENDATION ---
+Variation A (Regime Filter) produces the best risk-adjusted results. By skipping BULL_TREND and BULL_VOLATILE weeks, it reduces total trades to 460 while achieving a profit factor of 1.10 vs V1's 1.04, with a max drawdown of -6.1% vs V1's -9.9%.  Variation B trails with a profit factor of 1.00 and drawdown of -13.6%. The regime filter is the stronger improvement.

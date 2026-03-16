@@ -1,0 +1,6 @@
+Ticker,Signal Score,Entry Price,Stop Price,Target Price,Shares,Return 1W,RSI 14,Regime,Sector
+AEP,0.85,133.61,130.03,140.78,7,0.01,57,BEAR_TREND,Utilities
+EXC,0.85,49.82,48.46,52.54,20,0.01,67,BEAR_TREND,Utilities
+ED,0.82,114.88,111.73,121.17,8,0.02,61,BEAR_TREND,Utilities
+SO,0.76,98.01,95.66,102.71,10,0.01,69,BEAR_TREND,Utilities
+VZ,0.75,51.38,49.96,54.22,19,0.01,65,BEAR_TREND,Telecom

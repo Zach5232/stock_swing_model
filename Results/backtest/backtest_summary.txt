@@ -1,0 +1,18 @@
+=== BACKTEST SUMMARY (5 Year, Version 1 Rules) ===
+Date range:         2021-02-08 to 2026-03-11
+Total weeks:        271
+Weeks with trades:  237
+Total trades:       1185
+Win rate:           48.3%
+Avg R per trade:    0.01
+Profit factor:      1.04  (gross wins / gross losses)
+Max drawdown:       -9.9%
+Final equity:       $10,535.38
+Total return:       5.4%
+Slippage assumed:   0.1% per side
+Risk per trade:     $35 flat
+
+Exit breakdown:
+  Target hit:       78  (6.6%)
+  Stop hit:         343  (28.9%)
+  Time (Friday):    764  (64.5%)

@@ -1,0 +1,4 @@
+#!/bin/bash
+cd "/Users/zacharybaker/Library/Mobile Documents/com~apple~CloudDocs/stock_swing_model"
+source .venv/bin/activate
+python3 Scripts/main.py
