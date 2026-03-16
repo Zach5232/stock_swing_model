@@ -247,7 +247,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:
 .trend-val{font-size:18px;font-weight:500}
 .trend-sub{font-size:11px;margin-top:2px}
 canvas{width:100%!important}
-@media(max-width:600px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}.entry-form{grid-template-columns:1fr 1fr}.trend-grid{grid-template-columns:1fr 1fr}}
+.grid-6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.grid-equity{display:grid;grid-template-columns:1fr 210px;gap:1rem}
+@media(max-width:600px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .grid-6{grid-template-columns:repeat(3,1fr)}
+  .grid-2{grid-template-columns:1fr}
+  .grid-equity{grid-template-columns:1fr}
+  .grid-equity .matchup-card{display:none}
+  .entry-form{grid-template-columns:1fr 1fr}
+  .trend-grid{grid-template-columns:1fr 1fr}
+  .season-row{grid-template-columns:28px 1fr 60px 44px 36px 1fr;font-size:12px}
+  .season-row>div:nth-child(6){display:none}
+}
 </style>
 </head>
 <body>
@@ -411,7 +423,7 @@ canvas{width:100%!important}
 <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:.25rem;opacity:.5">Season performance</div>
 
 <!-- OVERALL STATS (6 boxes) -->
-<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:.75rem">
+<div class="grid-6" style="margin-bottom:.75rem">
   <div class="metric"><div class="lbl">Total P&amp;L</div><div class="val" id="m-pnl">$0.00</div><div class="sub" id="m-r">0.00R all time</div></div>
   <div class="metric"><div class="lbl">Win rate</div><div class="val" id="m-wr">—</div><div class="sub" id="m-wl">0W / 0L</div></div>
   <div class="metric"><div class="lbl">Season record</div><div class="val" id="m-mkt">—</div><div class="sub" id="m-mkt-sub">0 weeks tracked</div></div>
@@ -421,7 +433,7 @@ canvas{width:100%!important}
 </div>
 
 <!-- TOTAL EQUITY vs S&P + WEEKLY GRADE CARD -->
-<div style="display:grid;grid-template-columns:1fr 210px;gap:1rem;margin-bottom:1rem">
+<div class="grid-equity" style="margin-bottom:1rem">
   <div class="card" style="margin-bottom:0">
     <div class="card-hdr">
       <div>
