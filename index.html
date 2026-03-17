@@ -665,23 +665,45 @@ function dbWrite(promise){
   });
 }
 
+let _unsubs=[];
+
 async function loadAllData(){
-  const [tSnap,cSnap,wSnap,sSnap,slSnap,nSnap]=await Promise.all([
-    userRef.collection('data').doc('trades').get(),
-    userRef.collection('data').doc('closed').get(),
-    userRef.collection('data').doc('weeks').get(),
+  // One-time reads: settings (weekNum/regime/intelOpen), migration check, notes
+  const [sSnap,tCheckSnap,nSnap]=await Promise.all([
     userRef.collection('settings').doc('state').get(),
-    userRef.collection('data').doc('slates').get(),
+    userRef.collection('data').doc('trades').get(),
     userRef.collection('notes').get(),
   ]);
   // First-ever load: migrate from localStorage
-  if(!sSnap.exists&&!tSnap.exists){await migrateFromLocalStorage();return;}
-  trades=tSnap.exists?(tSnap.data().items||[]):[];
-  closed=cSnap.exists?(cSnap.data().items||[]):[];
-  weeks=wSnap.exists?(wSnap.data().items||[]):[];
-  if(sSnap.exists){const s=sSnap.data();weekNum=s.weekNum||1;regime=s.regime||'BEAR_TREND';intelOpen=s.intelOpen!==false;}
-  if(slSnap.exists){const sd=slSnap.data();slatesStore={current:sd.current||null,archive:sd.archive||[]};}
-  nSnap.forEach(doc=>{notesCache[doc.id]=doc.data().text||'';});
+  if(!sSnap.exists&&!tCheckSnap.exists){
+    await migrateFromLocalStorage();
+  } else {
+    if(sSnap.exists){const s=sSnap.data();weekNum=s.weekNum||1;regime=s.regime||'BEAR_TREND';intelOpen=s.intelOpen!==false;}
+    nSnap.forEach(doc=>{notesCache[doc.id]=doc.data().text||'';});
+  }
+  // Real-time listeners — resolve once all four initial snapshots have fired
+  return new Promise(resolve=>{
+    let ready=0;
+    const onFirst=()=>{if(++ready===4)resolve();};
+    _unsubs.push(
+      userRef.collection('data').doc('trades').onSnapshot(snap=>{
+        trades=snap.exists?(snap.data().items||[]):[];
+        ready<4?onFirst():render();
+      }),
+      userRef.collection('data').doc('closed').onSnapshot(snap=>{
+        closed=snap.exists?(snap.data().items||[]):[];
+        ready<4?onFirst():render();
+      }),
+      userRef.collection('data').doc('weeks').onSnapshot(snap=>{
+        weeks=snap.exists?(snap.data().items||[]):[];
+        ready<4?onFirst():render();
+      }),
+      userRef.collection('data').doc('slates').onSnapshot(snap=>{
+        if(snap.exists){const sd=snap.data();slatesStore={current:sd.current||null,archive:sd.archive||[]};}
+        ready<4?onFirst():(renderSlate(),renderSlateHistoryDropdown());
+      })
+    );
+  });
 }
 
 async function migrateFromLocalStorage(){
@@ -2160,6 +2182,8 @@ async function bootUser(user){
 }
 
 function showLogin(){
+  _unsubs.forEach(u=>u());
+  _unsubs=[];
   _booted=false;
   userRef=null;
   const ls=document.getElementById('login-screen');
