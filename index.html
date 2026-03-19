@@ -1556,13 +1556,111 @@ function addTrade(){
 function closeTrade(i,reason){
   const t=trades[i];
   const cur=prices[t.ticker]||t.entry;
-  const exitPrice=reason==='stop'?t.stop:reason==='target'?t.target:cur;
-  const pnl=(exitPrice-t.entry)*t.shares;
-  const rps=Math.max(t.entry-t.stop,0.01);
-  const r=(exitPrice-t.entry)/rps;
-  const day=new Date().toLocaleDateString('en-US',{weekday:'short'});
-  closed.unshift({...t,exitPrice,pnl,r,reason,closeDate:new Date().toISOString().slice(0,10),closeWeek:weekNum,closeDay:day});
-  trades.splice(i,1);save();render();
+  const defaultPrice=reason==='stop'?t.stop:reason==='target'?t.target:cur;
+  const T=THEME;
+
+  const existing=document.getElementById('close-price-prompt');
+  if(existing)existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='close-price-prompt';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center';
+
+  const reasonLabel=reason==='stop'?'Stop Hit':reason==='target'?'Target Hit':'Friday Close';
+  const reasonColor=reason==='stop'?T.loss:reason==='target'?T.win:T.textMuted;
+
+  overlay.innerHTML=`
+    <div style="background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:14px;padding:28px 32px;min-width:300px;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.5)">
+      <div style="font-size:13px;font-weight:600;color:${reasonColor};margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">${reasonLabel}</div>
+      <div style="font-size:18px;font-weight:700;color:${T.textPrimary};margin-bottom:4px">${t.ticker}</div>
+      <div style="font-size:12px;color:${T.textMuted};margin-bottom:20px">${t.shares} shares · Entry $${t.entry.toFixed(2)}</div>
+      <label style="font-size:12px;color:${T.textMuted};display:block;margin-bottom:6px">Actual fill price</label>
+      <input id="close-price-input" type="number" step="0.01" value="${defaultPrice.toFixed(2)}"
+        style="width:100%;padding:10px 12px;font-size:16px;font-weight:600;border-radius:8px;border:1px solid ${T.btnBorder};background:${T.inputBg||T.btnBg};color:${T.textPrimary};box-sizing:border-box;margin-bottom:20px">
+      <div style="display:flex;gap:10px">
+        <button id="close-cancel-btn" style="flex:1;padding:10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:pointer;font-size:13px">Cancel</button>
+        <button id="close-confirm-btn" style="flex:2;padding:10px;border-radius:8px;border:none;background:${reasonColor};color:#fff;cursor:pointer;font-size:13px;font-weight:600">Confirm Close</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  setTimeout(()=>{
+    const inp=document.getElementById('close-price-input');
+    inp.focus();inp.select();
+  },50);
+
+  document.getElementById('close-cancel-btn').onclick=()=>overlay.remove();
+
+  document.getElementById('close-confirm-btn').onclick=()=>{
+    const raw=parseFloat(document.getElementById('close-price-input').value);
+    if(isNaN(raw)||raw<=0){alert('Enter a valid price.');return;}
+    const exitPrice=raw;
+    const pnl=(exitPrice-t.entry)*t.shares;
+    const rps=Math.max(t.entry-t.stop,0.01);
+    const r=(exitPrice-t.entry)/rps;
+    const day=new Date().toLocaleDateString('en-US',{weekday:'short'});
+    closed.unshift({...t,exitPrice,pnl,r,reason,closeDate:new Date().toISOString().slice(0,10),closeWeek:weekNum,closeDay:day});
+    trades.splice(i,1);
+    overlay.remove();
+    save();render();
+  };
+
+  document.getElementById('close-price-input').addEventListener('keydown',e=>{
+    if(e.key==='Enter')document.getElementById('close-confirm-btn').click();
+    if(e.key==='Escape')overlay.remove();
+  });
+}
+
+function editClosedPrice(i){
+  const t=closed[i];
+  const T=THEME;
+
+  const existing=document.getElementById('edit-price-prompt');
+  if(existing)existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='edit-price-prompt';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center';
+
+  overlay.innerHTML=`
+    <div style="background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:14px;padding:28px 32px;min-width:300px;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.5)">
+      <div style="font-size:13px;font-weight:600;color:${T.textMuted};margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Edit Exit Price</div>
+      <div style="font-size:18px;font-weight:700;color:${T.textPrimary};margin-bottom:4px">${t.ticker}</div>
+      <div style="font-size:12px;color:${T.textMuted};margin-bottom:20px">${t.shares} shares · Entry $${t.entry.toFixed(2)} · Closed ${t.closeDate}</div>
+      <label style="font-size:12px;color:${T.textMuted};display:block;margin-bottom:6px">Corrected fill price</label>
+      <input id="edit-price-input" type="number" step="0.01" value="${t.exitPrice.toFixed(2)}"
+        style="width:100%;padding:10px 12px;font-size:16px;font-weight:600;border-radius:8px;border:1px solid ${T.btnBorder};background:${T.inputBg||T.btnBg};color:${T.textPrimary};box-sizing:border-box;margin-bottom:20px">
+      <div style="display:flex;gap:10px">
+        <button id="edit-cancel-btn" style="flex:1;padding:10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:pointer;font-size:13px">Cancel</button>
+        <button id="edit-confirm-btn" style="flex:2;padding:10px;border-radius:8px;border:none;background:${T.win};color:#fff;cursor:pointer;font-size:13px;font-weight:600">Save Correction</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  setTimeout(()=>{
+    const inp=document.getElementById('edit-price-input');
+    inp.focus();inp.select();
+  },50);
+
+  document.getElementById('edit-cancel-btn').onclick=()=>overlay.remove();
+
+  document.getElementById('edit-confirm-btn').onclick=()=>{
+    const raw=parseFloat(document.getElementById('edit-price-input').value);
+    if(isNaN(raw)||raw<=0){alert('Enter a valid price.');return;}
+    const rps=Math.max(t.entry-t.stop,0.01);
+    closed[i].exitPrice=raw;
+    closed[i].pnl=(raw-t.entry)*t.shares;
+    closed[i].r=(raw-t.entry)/rps;
+    overlay.remove();
+    save();render();
+  };
+
+  document.getElementById('edit-price-input').addEventListener('keydown',e=>{
+    if(e.key==='Enter')document.getElementById('edit-confirm-btn').click();
+    if(e.key==='Escape')overlay.remove();
+  });
 }
 
 function nextWeek(){
@@ -1844,7 +1942,15 @@ function render(){
     hl.innerHTML=visibleRows.map((t,i)=>{
       const idx=start+i;
       const pc=t.pnl>0?T.win:T.loss;
-      return`<div style="display:grid;grid-template-columns:60px 1fr 80px 65px 80px 32px;gap:8px;align-items:center;padding:8px 0;border-bottom:.5px solid ${T.cardBorder}"><div><div class="tkr">${t.ticker}</div><div style="font-size:10px;color:${T.textMuted}">${t.closeDate}</div></div><div style="font-size:12px;color:${T.textMuted}">${t.shares}sh · $${t.entry.toFixed(2)}→$${t.exitPrice.toFixed(2)}</div><div style="font-weight:500;font-size:14px;color:${pc}">${fmtP(t.pnl)}</div><div style="font-size:12px;color:${T.textMuted}">${fmtR(t.r||0)}</div><div style="font-size:11px;color:${T.textMuted};text-align:right">${rl(t.reason)}</div><button onclick="deleteClosedTrade(${idx})" title="Delete this trade" style="font-size:13px;padding:0;border:none;background:transparent;cursor:pointer;opacity:.4;color:${T.loss}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">🗑</button></div>`;
+      return`<div style="display:grid;grid-template-columns:60px 1fr 80px 65px 80px 32px 32px;gap:8px;align-items:center;padding:8px 0;border-bottom:.5px solid ${T.cardBorder}">
+        <div><div class="tkr">${t.ticker}</div><div style="font-size:10px;color:${T.textMuted}">${t.closeDate}</div></div>
+        <div style="font-size:12px;color:${T.textMuted}">${t.shares}sh · $${t.entry.toFixed(2)}→$${t.exitPrice.toFixed(2)}</div>
+        <div style="font-weight:500;font-size:14px;color:${pc}">${fmtP(t.pnl)}</div>
+        <div style="font-size:12px;color:${T.textMuted}">${fmtR(t.r||0)}</div>
+        <div style="font-size:11px;color:${T.textMuted};text-align:right">${rl(t.reason)}</div>
+        <button onclick="editClosedPrice(${idx})" title="Edit exit price" style="font-size:13px;padding:0;border:none;background:transparent;cursor:pointer;opacity:.4;color:${T.textMuted}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">✏️</button>
+        <button onclick="deleteClosedTrade(${idx})" title="Delete this trade" style="font-size:13px;padding:0;border:none;background:transparent;cursor:pointer;opacity:.4;color:${T.loss}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">🗑</button>
+      </div>`;
     }).join('')+`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:${T.textMuted}"><button onclick="prevHistoryPage()" ${currentPage===0?'disabled':''} style="font-size:12px;padding:4px 10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:${currentPage===0?'default':'pointer'};opacity:${currentPage===0?'.45':'1'}">&lt;&lt; Prev</button><div>Page ${currentPage+1} / ${totalPages}</div><button onclick="nextHistoryPage()" ${currentPage>=totalPages-1?'disabled':''} style="font-size:12px;padding:4px 10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:${currentPage>=totalPages-1?'default':'pointer'};opacity:${currentPage>=totalPages-1?'.45':'1'}">Next &gt;&gt;</button></div><div style="margin-top:8px;font-size:12px;color:${T.textMuted}">Showing ${showingStart}–${showingEnd} of ${totalRows} trades</div>`;
   }
 
