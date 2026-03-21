@@ -14,6 +14,7 @@ Daily flow:
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 import os
@@ -228,8 +229,11 @@ def save_daily_candidates(candidates: pd.DataFrame, regime: str = "UNKNOWN") -> 
             "rank_vol_surge": "Rank Vol Surge",
             "regime": "Regime",
         })
-        # Reorder columns: Ticker, Sector, Regime, Shares, Entry Price, Stop Price, Target Price, then the rest
-        priority_cols = ["Ticker", "Company", "Sector", "Regime", "Shares", "Entry Price", "Stop Price", "Target Price"]
+        # Add rank as first column
+        candidates = candidates.reset_index(drop=True)
+        candidates.insert(0, 'Rank', range(1, len(candidates) + 1))
+        # Reorder columns: Rank, Ticker, Sector, Regime, Shares, Entry Price, Stop Price, Target Price, then the rest
+        priority_cols = ["Rank", "Ticker", "Company", "Sector", "Regime", "Shares", "Entry Price", "Stop Price", "Target Price"]
         remaining_cols = [col for col in candidates.columns if col not in priority_cols]
         candidates = candidates[priority_cols + remaining_cols]
         validate_csv_schema(candidates)
@@ -413,6 +417,66 @@ def run_daily_model(log_trades: bool = False) -> Path | None:
 
     out_path = save_daily_candidates(sized_candidates, regime=regime)
     print(f">>> Daily candidates saved to: {out_path}")
+
+    # Sector concentration check
+    sector_counts = Counter(sized_candidates['sector'])
+    most_common_sector, most_common_count = sector_counts.most_common(1)[0]
+
+    if most_common_count >= 3:
+        print(f"\n⚠️  SECTOR CONCENTRATION: {most_common_count}/5 candidates are {most_common_sector}")
+        print(f"   Main slate saved normally.")
+        print(f"\n   Want a diversified backup slate from ranks 6-10?")
+        print(f"   1 = Yes    2 = No")
+        choice = input("   Enter 1 or 2: ").strip()
+
+        if choice == '1':
+            df_all_sorted = signals.sort_values('signal_score', ascending=False).reset_index(drop=True)
+            df_remaining = df_all_sorted.iloc[MAX_TRADES_PER_DAY:MAX_TRADES_PER_DAY + 15].reset_index(drop=True)
+            backup_raw = df_remaining.head(5).copy()
+
+            backup_sized = size_positions(backup_raw)
+
+            if not backup_sized.empty:
+                backup_sized['sector'] = backup_sized['ticker'].map(sector_map).fillna('Other')
+                backup_sized['company'] = backup_sized['ticker'].map(company_map).fillna('')
+
+                backup_sector_counts = Counter(backup_sized['sector'])
+                backup_top_sector, backup_top_count = backup_sector_counts.most_common(1)[0]
+                if backup_top_count >= 4:
+                    print(f"\n⚠️  Backup slate is also heavily concentrated ({backup_top_count}/5 are {backup_top_sector})")
+                    print(f"   This may be a sector rotation week.")
+                    print(f"   Recommendation: take only ranks 1-2 or 1-3 from the main slate instead of a full 5-trade week.")
+                    print(f"   Saving backup anyway for reference.\n")
+
+                backup_sized['regime'] = regime
+                backup_sized = backup_sized.rename(columns={
+                    "ticker": "Ticker", "company": "Company", "sector": "Sector",
+                    "ret_1w": "Return 1W", "rsi_14": "RSI 14",
+                    "signal_score": "Signal Score", "entry_price": "Entry Price",
+                    "stop_price": "Stop Price", "shares": "Shares",
+                    "target_price": "Target Price", "regime": "Regime",
+                })
+                backup_sized = backup_sized.reset_index(drop=True)
+                backup_sized.insert(0, 'Rank', range(6, 6 + len(backup_sized)))
+
+                backup_cols = ["Rank", "Ticker", "Signal Score", "Entry Price", "Stop Price",
+                               "Target Price", "Shares", "Return 1W", "RSI 14", "Regime"]
+                backup_cols_present = [c for c in backup_cols if c in backup_sized.columns]
+                backup_out = backup_sized[backup_cols_present].copy()
+
+                for col in ["Signal Score", "Entry Price", "Stop Price", "Target Price", "Return 1W", "RSI 14"]:
+                    if col in backup_out.columns:
+                        backup_out[col] = backup_out[col].round(2)
+
+                today_str = datetime.today().strftime("%Y-%m-%d")
+                backup_path = CANDIDATE_DIR / f"candidates_backup_{today_str}.csv"
+                backup_out.to_csv(backup_path, index=False)
+                print(f"\n✅ Backup slate saved: candidates_backup_{today_str}.csv")
+                print(f"   Load via Load Monday Slate button if you want an alternative this week.")
+            else:
+                print("   No viable backup candidates found after sizing.")
+        else:
+            print("Done.")
 
     pool_path = save_candidate_pool(signals, sized_candidates, sector_map, company_map)
     print(f">>> Candidate pool saved to: {pool_path}")
