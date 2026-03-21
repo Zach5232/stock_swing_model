@@ -420,7 +420,7 @@ canvas{width:100%!important}
      Review on Fridays
      ══════════════════════════════════════ -->
 
-<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:.25rem;opacity:.5">Season performance</div>
+<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:.25rem;opacity:.5">Weekly notes</div>
 
 <!-- OVERALL STATS (6 boxes) -->
 <div class="grid-6" style="margin-bottom:.75rem">
@@ -471,16 +471,19 @@ canvas{width:100%!important}
   <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap" id="trend-legend"></div>
 </div>
 
+<!-- WEEKLY NOTES CARD -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-hdr">
+    <div class="ctitle">Weekly notes</div>
+    <button onclick="exportNotesCSV()" style="font-size:11px;padding:4px 10px;border-radius:6px;border:.5px solid;cursor:pointer">Export notes</button>
+  </div>
+  <div id="notes-card-body"></div>
+</div>
+
 <!-- SEASON RECORD + SECTOR BREAKDOWN -->
 <div class="grid-2">
   <div class="card" style="margin-bottom:0">
     <div class="ctitle">Season record</div>
-    <div style="margin-bottom:.6rem;position:relative;z-index:1">
-      <label id="week-note-label" style="font-size:11px;display:block;margin-bottom:4px">Week — note</label>
-      <textarea id="week-note-input" rows="3" maxlength="500" placeholder="Any notes for this week…"
-        style="width:100%;font-size:12px;padding:5px 8px;border-radius:7px;border:.5px solid;font-style:italic;box-sizing:border-box;pointer-events:auto;position:relative;z-index:1;resize:vertical;font-family:inherit"
-        oninput="saveCurrentNote(this.value)"></textarea>
-    </div>
     <div id="season-list"><div style="font-size:13px">No weeks completed yet.</div></div>
   </div>
   <div class="card" style="margin-bottom:0"><div class="ctitle">Sector breakdown</div><div id="sector-list"><div style="font-size:13px">No trades yet.</div></div></div>
@@ -1511,17 +1514,6 @@ function renderSectors(){
 
 /* ── season ── */
 function renderSeason(){
-  // wire the current-week note input
-  const lbl=document.getElementById('week-note-label');
-  const inp=document.getElementById('week-note-input');
-  if(lbl) lbl.textContent='Week '+weekNum+' — note';
-  if(inp){
-    inp.value=notesCache[String(weekNum)]||'';
-    inp.style.background=THEME.inputBg;
-    inp.style.color=THEME.textPrimary;
-    inp.style.borderColor=THEME.btnBorder;
-  }
-
   const el=document.getElementById('season-list');
   if(!weeks.length){el.innerHTML=`<div style="font-size:13px">Hit "next week" on Friday to log each week.</div>`;return}
   el.innerHTML=`<div class="season-row" style="font-size:11px;color:${THEME.textMuted}"><div>#</div><div>Record</div><div>P&L</div><div>R</div><div>Grd</div><div>Regime</div><div>Notes</div></div>`+
@@ -1532,6 +1524,69 @@ function renderSeason(){
     const note=notesCache[String(w.week)]||'';
     return`<div class="season-row" style="${isLast?'border-bottom:none':''}"><div style="color:${THEME.textMuted}">${w.week}</div><div>${w.wins}W-${w.losses}L</div><div style="color:${won?THEME.win:THEME.loss};font-weight:500">${fmtP(w.pnl)}</div><div style="color:${THEME.textMuted}">${fmtR(w.totalR)}</div><div class="${gc}" style="font-weight:500">${w.grade}</div><div style="font-size:10px;color:${THEME.textMuted}">${w.regime||'—'}</div><div style="font-size:11px;color:${THEME.textMuted};font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${note}</div></div>`
   }).join('');
+}
+
+function toggleNoteWeek(week){
+  const c=document.getElementById('note-content-'+week);
+  const a=document.getElementById('note-toggle-'+week);
+  if(!c||!a)return;
+  if(c.style.display==='none'){c.style.display='block';a.textContent='▲';}
+  else{c.style.display='none';a.textContent='▼';}
+}
+
+function renderNotesCard(){
+  const T=THEME;
+  const el=document.getElementById('notes-card-body');
+  if(!el)return;
+
+  // Current week input
+  const curNote=notesCache[String(weekNum)]||'';
+  let html='<div style="margin-bottom:1rem">'
+    +'<label style="font-size:11px;color:'+T.textMuted+';display:block;margin-bottom:4px">Week '+weekNum+' — note</label>'
+    +'<textarea id="week-note-input" rows="3" maxlength="500" placeholder="Any notes for this week…"'
+    +' style="width:100%;font-size:12px;padding:5px 8px;border-radius:7px;border:.5px solid '+T.btnBorder+';background:'+(T.inputBg||T.btnBg)+';color:'+T.textPrimary+';font-style:italic;box-sizing:border-box;pointer-events:auto;position:relative;z-index:1;resize:vertical;font-family:inherit"'
+    +' oninput="saveCurrentNote(this.value)">'+curNote+'</textarea>'
+    +'</div>';
+
+  // Past weeks with saved notes
+  const pastWeeks=[...weeks].reverse().filter(w=>notesCache[String(w.week)]);
+  if(pastWeeks.length){
+    html+='<div style="font-size:10px;color:'+T.textMuted+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Past weeks</div>';
+    pastWeeks.forEach(w=>{
+      const note=notesCache[String(w.week)]||'';
+      const pnlColor=w.pnl>0?T.win:T.loss;
+      html+='<div style="border-bottom:.5px solid '+T.btnBorder+';padding:6px 0">'
+        +'<div onclick="toggleNoteWeek('+w.week+')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">'
+        +'<div style="display:flex;gap:12px;align-items:center">'
+        +'<span style="font-size:12px;font-weight:500;color:'+T.textPrimary+'">Week '+w.week+'</span>'
+        +'<span style="font-size:10px;color:'+T.textMuted+'">'+(w.regime||'—')+'</span>'
+        +'<span style="font-size:12px;color:'+pnlColor+';font-weight:500">'+fmtP(w.pnl)+'</span>'
+        +'</div>'
+        +'<span id="note-toggle-'+w.week+'" style="font-size:10px;color:'+T.textMuted+'">▼</span>'
+        +'</div>'
+        +'<div id="note-content-'+w.week+'" style="display:none;margin-top:6px;padding:8px 10px;border-radius:6px;background:'+T.metricBg+';font-size:12px;color:'+T.textPrimary+';font-style:italic;line-height:1.5;white-space:pre-wrap">'+note+'</div>'
+        +'</div>';
+    });
+  }
+  el.innerHTML=html;
+}
+
+function exportNotesCSV(){
+  const rows=[['Week','Regime','PnL','Note']];
+  const currentNote=notesCache[String(weekNum)]||'';
+  if(currentNote){rows.push([weekNum,regime,'—',currentNote]);}
+  [...weeks].reverse().forEach(w=>{
+    const note=notesCache[String(w.week)]||'';
+    rows.push([w.week,w.regime||'—',w.pnl.toFixed(2),note]);
+  });
+  const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=rows.map(r=>r.map(esc).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='weekly_notes_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── add / close trade ── */
@@ -1954,7 +2009,7 @@ function render(){
     }).join('')+`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:${T.textMuted}"><button onclick="prevHistoryPage()" ${currentPage===0?'disabled':''} style="font-size:12px;padding:4px 10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:${currentPage===0?'default':'pointer'};opacity:${currentPage===0?'.45':'1'}">&lt;&lt; Prev</button><div>Page ${currentPage+1} / ${totalPages}</div><button onclick="nextHistoryPage()" ${currentPage>=totalPages-1?'disabled':''} style="font-size:12px;padding:4px 10px;border-radius:8px;border:.5px solid ${T.btnBorder};background:${T.btnBg};color:${T.textPrimary};cursor:${currentPage>=totalPages-1?'default':'pointer'};opacity:${currentPage>=totalPages-1?'.45':'1'}">Next &gt;&gt;</button></div><div style="margin-top:8px;font-size:12px;color:${T.textMuted}">Showing ${showingStart}–${showingEnd} of ${totalRows} trades</div>`;
   }
 
-  buildEquityChart();buildWeekChart();renderHeatMap();renderHOF();renderSectors();renderSeason();renderEdu();renderTrends();buildVarianceChart();buildRDistChart();
+  buildEquityChart();buildWeekChart();renderHeatMap();renderHOF();renderSectors();renderSeason();renderNotesCard();renderEdu();renderTrends();buildVarianceChart();buildRDistChart();
 }
 
 /* ── delete trades ── */
